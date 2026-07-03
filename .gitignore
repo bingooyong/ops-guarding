@@ -27,7 +27,7 @@
 # Runtime output
 /logs/
 /logs-*/
-var/
+/var/
 
 # Local configuration overrides
 cnf.toml

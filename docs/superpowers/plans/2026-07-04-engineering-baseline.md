@@ -78,7 +78,7 @@ Edit `.gitignore` to this complete content:
 # Runtime output
 /logs/
 /logs-*/
-var/
+/var/
 
 # Local configuration overrides
 cnf.toml
