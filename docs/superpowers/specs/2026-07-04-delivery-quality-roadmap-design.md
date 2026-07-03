@@ -13,7 +13,7 @@ The workstream prioritizes engineering baseline quality before new business capa
 - `etc/service/server.conf` and `etc/service/agentd.conf` provide sample configuration, while code defaults point to `etc/server.conf` and `etc/agentd.conf`.
 - `sql/ibex.sql` defines the MySQL schema, including `task_host_0` through `task_host_99`.
 - `go test ./...` does not provide a clean baseline in the current environment. The first run attempted to write outside the sandboxed Go cache. A rerun with `GOCACHE=/tmp/ops-guarding-gocache` still attempted module cache writes under `$HOME/go/pkg/mod` and exposed a `pkg/appframe/logger` syslog test panic.
-- The Git repository has no commits yet, and most files are untracked.
+- At exploration time, the Git repository had no commits, and most files were untracked. The roadmap spec is now the root commit, so implementation work should create the first source baseline commit.
 
 ## Recommended Direction
 
@@ -32,7 +32,7 @@ Required outcomes:
 - The repository documents database bootstrap, required services, expected ports, and local smoke checks.
 - The test command uses repo-local or temporary Go caches so it does not depend on host-specific cache permissions.
 - Known environment-sensitive tests either pass reliably or skip with a clear reason.
-- The repository has a first meaningful Git commit that excludes local tool state and generated noise.
+- The repository has a first source baseline commit that excludes local tool state and generated noise.
 
 Suggested tasks:
 
@@ -58,6 +58,7 @@ Acceptance evidence:
 - `go test ./...` runs through the documented validation path.
 - `go build -o bin/guarding ./cmd` succeeds.
 - README commands match the code's actual defaults.
+- `server` and `agentd` each start far enough to expose `/ping` with sample configuration, or the validation script reports a documented expected startup blocker such as a missing database or RPC peer.
 - `git status --short` shows only intentional changes before commit.
 
 ## Phase 2: Core Chain Confidence
@@ -131,7 +132,7 @@ The implementation plan should decide these items explicitly:
 - Whether validation caches should live under `.cache/go/` or `/tmp/ops-guarding-*`.
 - Whether syslog tests should use build tags, environment checks, or `t.Skip`.
 - Which database strategy Phase 2 should use: real MySQL, containerized MySQL, or an isolated test database.
-- Which files should belong in the first commit.
+- Which files should belong in the first source baseline commit.
 
 ## Approval State
 
