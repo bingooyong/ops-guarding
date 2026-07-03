@@ -56,7 +56,7 @@ Edit `.gitignore` to this complete content:
 # Local agent/runtime state
 .codex/
 .omx/
-meta/
+/meta/
 
 # Build outputs
 /bin/
@@ -72,12 +72,12 @@ meta/
 
 # Local caches and generated validation state
 .cache/
-coverage/
-test.json
+/coverage/
+/test.json
 
 # Runtime output
-logs/
-logs-*/
+/logs/
+/logs-*/
 var/
 
 # Local configuration overrides
