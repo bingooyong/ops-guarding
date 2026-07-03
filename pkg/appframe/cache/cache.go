@@ -29,19 +29,19 @@ type Getter interface {
 // Many callers will make exclusive use of Set and Get, but more exotic
 // functions are also available.
 //
-// Example
+// # Example
 //
 // Here is a typical Get/Set interaction:
 //
-//   var items []*Item
-//   if err := cache.Get("items", &items); err != nil {
-//     items = loadItems()
-//     go cache.Set("items", items, cache.DEFAULT)
-//   }
+//	var items []*Item
+//	if err := cache.Get("items", &items); err != nil {
+//	  items = loadItems()
+//	  go cache.Set("items", items, cache.DEFAULT)
+//	}
 //
 // Note that the caller will frequently not wait for Set() to complete.
 //
-// Errors
+// # Errors
 //
 // It is assumed that callers will infrequently check returned errors, since any
 // request should be fulfillable without finding anything in the cache.  As a

@@ -84,9 +84,15 @@ func (self *FileBackend) Close() {
 
 func (self *FileBackend) flushDaemon() {
 	for {
-		time.Sleep(self.flushInterval)
+		time.Sleep(self.getFlushInterval())
 		self.Flush()
 	}
+}
+
+func (self *FileBackend) getFlushInterval() time.Duration {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return self.flushInterval
 }
 
 func shouldDel(fileName string, left uint) bool {
@@ -110,6 +116,7 @@ func (self *FileBackend) rotateByHourDaemon() {
 	for {
 		time.Sleep(time.Second * 1)
 
+		self.mu.Lock()
 		if self.rotateByHour {
 			check := getLastCheck(time.Now())
 			if self.lastCheck < check {
@@ -131,6 +138,7 @@ func (self *FileBackend) rotateByHourDaemon() {
 				}
 			}
 		}
+		self.mu.Unlock()
 	}
 }
 
@@ -175,11 +183,15 @@ func (self *FileBackend) Log(s Severity, msg []byte) {
 }
 
 func (self *FileBackend) Rotate(rotateNum1 int, maxSize1 uint64) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	self.rotateNum = rotateNum1
 	self.maxSize = maxSize1
 }
 
 func (self *FileBackend) SetRotateByHour(rotateByHour bool) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	self.rotateByHour = rotateByHour
 	if self.rotateByHour {
 		self.lastCheck = getLastCheck(time.Now())
@@ -189,14 +201,20 @@ func (self *FileBackend) SetRotateByHour(rotateByHour bool) {
 }
 
 func (self *FileBackend) SetKeepHours(hours uint) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	self.keepHours = hours
 }
 
 func (self *FileBackend) Fall() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	self.fall = true
 }
 
 func (self *FileBackend) SetFlushDuration(t time.Duration) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	if t >= time.Second {
 		self.flushInterval = t
 	} else {

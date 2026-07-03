@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -142,6 +143,29 @@ func TestSysLogBackend(t *testing.T) {
 	Errorf("%d %s", 123, "error")
 	Info("Info")
 	time.Sleep(time.Second * 2)
+}
+
+func TestFileBackendConcurrentConfiguration(t *testing.T) {
+	b, err := NewFileBackend(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			b.SetFlushDuration(time.Duration(i) * time.Millisecond)
+			b.SetRotateByHour(i%2 == 0)
+			b.SetKeepHours(uint(i + 1))
+			b.Rotate(20, 1024*1024)
+			b.Fall()
+			b.Log(INFO, []byte("concurrent configuration\n"))
+		}(i)
+	}
+	wg.Wait()
 }
 
 /*
