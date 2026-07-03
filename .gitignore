@@ -1,0 +1,37 @@
+# macOS and editor noise
+.DS_Store
+.idea/
+
+# Local agent/runtime state
+.codex/
+.omx/
+meta/
+
+# Build outputs
+bin/
+ctl
+gostarter
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Local caches and generated validation state
+.cache/
+coverage/
+test.json
+
+# Runtime output
+logs/
+logs-*/
+var/
+
+# Local configuration overrides
+cnf.toml
+*.local.conf
+*.local.toml
+*.local.yaml
+*.local.json
