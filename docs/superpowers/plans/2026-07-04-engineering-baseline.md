@@ -467,7 +467,7 @@ if ! kill -0 "$AGENT_PID" 2>/dev/null; then
 	exit 1
 fi
 
-curl -fsS http://127.0.0.1:2090/ping >/dev/null
+curl --connect-timeout 2 --max-time 5 -fsS http://127.0.0.1:2090/ping >/dev/null
 echo "smoke: agentd /ping PASS"
 
 "$ROOT_DIR/bin/guarding" server -c etc/service/server.conf >"$server_log" 2>&1 &
@@ -475,10 +475,10 @@ SERVER_PID="$!"
 sleep 3
 
 if kill -0 "$SERVER_PID" 2>/dev/null; then
-	curl -fsS http://127.0.0.1:10090/ping >/dev/null
+	curl --connect-timeout 2 --max-time 5 -fsS http://127.0.0.1:10090/ping >/dev/null
 	echo "smoke: server /ping PASS"
 else
-	if grep -Eiq 'connect|connection|database|mysql|postgres|access denied|refused|no such host' "$server_log"; then
+	if grep -Eiq 'server init fail: .*(dial tcp .*:(3306|5432)|connect: connection refused|connect: no route to host|i/o timeout|access denied|unknown database|database .* does not exist|password authentication failed|no such host)' "$server_log"; then
 		echo "smoke: server startup blocked by documented database dependency"
 		cat "$server_log"
 	else
