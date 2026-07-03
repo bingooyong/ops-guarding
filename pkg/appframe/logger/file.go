@@ -256,7 +256,7 @@ func NewFileBackend(dir string) (*FileBackend, error) {
 	fb.lastCheck = 0
 	// init reg to match files
 	// ONLY cover this centry...
-	fb.reg = regexp.MustCompile("(INFO|ERROR|WARNING|DEBUG|FATAL)\\.log\\.20[0-9]{8}")
+	fb.reg = regexp.MustCompile(`(INFO|ERROR|WARNING|DEBUG|FATAL)\.log\.20[0-9]{8}`)
 	fb.keepHours = 24 * 7
 
 	go fb.flushDaemon()
