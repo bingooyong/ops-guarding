@@ -59,9 +59,9 @@ Edit `.gitignore` to this complete content:
 meta/
 
 # Build outputs
-bin/
-ctl
-gostarter
+/bin/
+/ctl
+/gostarter
 *.exe
 *.exe~
 *.dll
