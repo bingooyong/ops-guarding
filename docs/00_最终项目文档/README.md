@@ -18,6 +18,8 @@
 - `docs/superpowers/specs/2026-07-04-delivery-quality-roadmap-design.md`: delivery quality roadmap spec.
 - `docs/superpowers/plans/2026-07-04-engineering-baseline.md`: engineering baseline implementation plan.
 - `docs/ai-knowledge/`: reusable AI-agent knowledge.
+- `docs/ai-knowledge/task-chain-regression-tests.md`: task lifecycle regression test plan.
+- `docs/ai-knowledge/production-hardening.md`: production deployment and hardening checklist.
 
 ## 标准验证
 
@@ -40,8 +42,8 @@ gofmt -l $(git ls-files '*.go')
 ## 风险边界
 
 - Database-backed server behavior requires valid local MySQL configuration.
-- Task-chain functional regression coverage is still deferred.
-- Production deployment, secrets handling, metrics output, and HA design require later hardening.
+- Task-chain functional regression coverage is planned in `docs/ai-knowledge/task-chain-regression-tests.md`.
+- Production deployment, secrets handling, metrics output, and HA design are planned in `docs/ai-knowledge/production-hardening.md`.
 
 ## 后续维护规则
 
