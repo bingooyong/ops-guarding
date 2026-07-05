@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Delivery Quality Gates"
+  short_description: "Execute spec, review, and verification gates"
+  default_prompt: "Use -delivery-quality-gates to run a spec-driven AI coding delivery loop."

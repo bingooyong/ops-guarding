@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go Concurrency Review Fix"
+  short_description: "Reproduce and fix Go race/vet findings"
+  default_prompt: "Use -concurrency-review-fix to reproduce and fix Go race detector or vet findings."

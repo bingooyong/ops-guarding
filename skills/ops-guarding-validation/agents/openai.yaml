@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ops Guarding Validation"
+  short_description: "Run project validation and smoke gates"
+  default_prompt: "Use -guarding-validation to verify the ops-guarding baseline before reporting completion."
