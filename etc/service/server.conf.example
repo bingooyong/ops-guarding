@@ -42,7 +42,7 @@ IdleTimeout = 120
 
 [BasicAuth]
 # using when call apis
-ibex = "ibex"
+ibex = "CHANGE_ME"
 
 [RPC]
 Listen = "0.0.0.0:20090"
@@ -77,8 +77,8 @@ TablePrefix = ""
 Address = "127.0.0.1:3306"
 # mysql username
 User = "root"
-# mysql password
-Password = "1qaz@WSX"
+# mysql password — replace with your local password or read from env injection
+Password = "CHANGE_ME"
 # database name
 DBName = "ibex"
 # connection params
@@ -89,8 +89,8 @@ Parameters = "charset=utf8mb4&parseTime=True&loc=Local&allowNativePasswords=true
 Address = "127.0.0.1:5432"
 # pg user
 User = "root"
-# pg password
-Password = "1234"
+# pg password — replace with your local password or read from env injection
+Password = "CHANGE_ME"
 # database name
 DBName = "ibex"
 # ssl mode

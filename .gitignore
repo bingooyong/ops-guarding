@@ -3,8 +3,12 @@
 .idea/
 
 # Local agent/runtime state
+.agents/
+.claude/
 .codex/
+.cursor/
 .omx/
+.trellis/
 /meta/
 
 # Build outputs
@@ -35,3 +39,27 @@ cnf.toml
 *.local.toml
 *.local.yaml
 *.local.json
+*.local.bak
+# Real server config carries live DB/BasicAuth credentials — keep it local;
+# use server.conf.example as the template to copy from.
+etc/service/server.conf
+
+# Secrets, keys, and credential files (never commit these)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+secrets.yaml
+secrets.yml
+secrets.json
+secrets.toml
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
