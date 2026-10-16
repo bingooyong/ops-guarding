@@ -8,7 +8,9 @@
 .codex/
 .cursor/
 .omx/
-.trellis/
+.trellis/*
+!.trellis/spec/
+!.trellis/workflow.md
 /meta/
 
 # Build outputs
