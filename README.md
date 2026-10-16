@@ -37,6 +37,30 @@ The binary exposes two subcommands:
 
 The default config paths also point to `etc/service/server.conf` and `etc/service/agentd.conf`.
 
+## Configuration
+
+`etc/service/server.conf` is git-ignored because it carries live database
+and BasicAuth credentials. The repository ships a sanitized template at
+`etc/service/server.conf.example`. After cloning, copy it locally and fill
+in your values:
+
+```bash
+cp etc/service/server.conf.example etc/service/server.conf
+${EDITOR:-vi} etc/service/server.conf
+```
+
+At minimum, update these fields:
+
+- `[MySQL]` → `Address`, `User`, `Password`, `DBName`
+- `[BasicAuth]` → `ibex` (username / shared-secret pair used by HTTP APIs)
+
+`[Postgres]` only needs to be filled in if you switch `[Gorm] DBType` to
+`"postgres"`. `[Heartbeat].IP` defaults to `127.0.0.1`, which is fine for
+local samples; replace it when the `server` listens on a routable address.
+
+`agentd` reads `etc/service/agentd.conf` (tracked in git). Adjust
+`[Heartbeat].Host` and `[Heartbeat].Servers` to match your environment.
+
 ## Validate
 
 Run the standard validation script:
