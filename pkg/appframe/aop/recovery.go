@@ -46,7 +46,7 @@ func RecoveryWithWriter(out io.Writer) gin.HandlerFunc {
 			if err := recover(); err != nil {
 				// custom error
 				if e, ok := err.(errorx.PageError); ok {
-					c.JSON(e.Code, gin.H{"err": i18n.Sprintf(c.GetHeader("X-Language"), e.Message)})
+					c.JSON(e.Code, gin.H{"err": i18n.Sprintf(c.GetHeader("X-Language"), "%s", e.Message)})
 					c.Abort()
 					return
 				}
