@@ -18,7 +18,7 @@ The `server` process owns task metadata, scheduling, HTTP APIs, RPC, and result 
 
 ## Requirements
 
-- Go 1.22 or newer.
+- Go 1.26 or newer (`go.mod`: `go 1.26.0`, `toolchain go1.26.9`; with the default `GOTOOLCHAIN=auto` an older Go downloads go1.26.9 automatically).
 - MySQL for `server` runtime. The bootstrap schema lives in `sql/ibex.sql`.
 - `curl` for startup smoke checks.
 

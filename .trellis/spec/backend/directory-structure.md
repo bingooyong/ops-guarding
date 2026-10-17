@@ -6,7 +6,7 @@
 
 ## Overview
 
-`ops-guarding` is a single Go module (`module ops-guarding`, `go 1.22.1`) that
+`ops-guarding` is a single Go module (`module ops-guarding`, `go 1.26.0`, `toolchain go1.26.9`) that
 builds one binary, `bin/guarding`, from `cmd/main.go`. The binary has two
 sub-commands (urfave/cli v2): `guarding server` and `guarding agentd`. The
 design follows Nightingale **ibex**: the server accepts shell tasks over HTTP,
