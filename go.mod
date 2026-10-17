@@ -13,7 +13,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/go-cache v0.0.0-20130306151617-9fc39e0dbf62
 	github.com/shirou/gopsutil/v3 v3.24.3
-	github.com/ugorji/go/codec v1.2.11
+	github.com/ugorji/go/codec v1.3.2
 	github.com/urfave/cli/v2 v2.27.1
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/text v0.42.0
