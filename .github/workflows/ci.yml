@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Required leg: Go from go.mod (`toolchain go1.26.9`, `go 1.26.0`).
+          - go: go.mod
+            version-file: go.mod
+            version: ''
+          # Forward-compat leg: latest stable Go release.
+          - go: stable
+            version-file: ''
+            version: stable
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: ${{ matrix.version-file }}
+          go-version: ${{ matrix.version }}
+          cache: true
+
+      - name: go version
+        run: go version
+
+      - name: Download and verify modules
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Build
+        run: go build ./...
+
+      - name: validate.sh (go test + build ./cmd)
+        run: |
+          # Reuse setup-go's caches instead of the script's repo-local .cache/.
+          GOCACHE="$(go env GOCACHE)" GOMODCACHE="$(go env GOMODCACHE)"
+          export GOCACHE GOMODCACHE
+          ./scripts/validate.sh
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: gofmt
+        run: |
+          out="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
+          if [ -n "$out" ]; then
+            echo "::error::gofmt needed on:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: Race tests
+        run: go test -race -count=1 ./...
+
+      - name: go mod tidy check
+        # Only on the go.mod leg: a newer toolchain may legitimately rewrite go/toolchain lines.
+        if: matrix.go == 'go.mod'
+        run: |
+          go mod tidy
+          if ! git diff --exit-code go.mod go.sum; then
+            echo "::error::go.mod/go.sum are not tidy; run 'go mod tidy' and commit the result"
+            exit 1
+          fi
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: govulncheck
+        # Blocking gate: exits non-zero if the code calls any known vulnerability.
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
