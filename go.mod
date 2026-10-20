@@ -16,7 +16,7 @@ require (
 	github.com/ugorji/go/codec v1.2.11
 	github.com/urfave/cli/v2 v2.27.1
 	go.uber.org/automaxprocs v1.5.3
-	golang.org/x/text v0.42.0
+	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/driver/postgres v1.5.7
@@ -62,7 +62,7 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
