@@ -109,12 +109,16 @@ Inside the closure, every statement must use `tx`, not `DB()`.
 
 ## Common Mistakes / Known Issues
 
-- `MarkDoneStatus` (`pkg/models/task_host.go`) opens a transaction but runs the
-  `task_host_N` update via `DB()` instead of `tx`, so it is not atomic with the
-  `task_host_doing` delete. Don't copy this; use `tx` in new code.
+- Inside `DB().Transaction(func(tx *gorm.DB) error {...})` every statement must
+  use `tx`, never `DB()` (that bypasses the transaction). `MarkDoneStatus` had
+  this bug; fixed and covered by `task_host_integration_test.go`.
 - `TaskMetaTotal` / `TaskMetaGets` build `created > '<formatted time>'` by
   string concatenation. Use `Where("created > ?", before)` in new queries.
-- No tests run against a database; `docs/ai-knowledge/task-chain-regression-tests.md`
+- DB tests: `//go:build integration` + `OPS_MYSQL_DSN` (skip when unset), e.g.
+  `pkg/models/task_host_integration_test.go`; not run in CI. Prefer extracting
+  pure functions (`AggregateState`) and handler injection vars for unit tests.
+- Per-status host counts: `TaskHostStatusCounts(id)` (GROUP BY on `tht(id)`).
+- Previously no tests ran against a database; `docs/ai-knowledge/task-chain-regression-tests.md`
   requires a disposable DB (never `etc/service/server.conf`'s database) when adding them.
 - Server startup fails without a reachable MySQL and a local
   `etc/service/server.conf` (gitignored; copy from `server.conf.example`).

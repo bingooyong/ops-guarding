@@ -48,6 +48,7 @@ pkg/
     logger/ logx/              # logging backend + config adapter
     storage/ ormx/             # DB config → *gorm.DB (storage.DB global)
     cache/ httpx/ net/ runner/ sys/ file/ str/ slice/ runtimex/ cfg/
+    netx/                      # offline-safe local IPv4 detection (LocalIP)
 etc/service/         # agentd.conf (tracked), server.conf.example (tracked); server.conf is gitignored
 sql/ibex.sql         # schema (MySQL); creates DB `ibex`
 scripts/             # validate.sh, smoke-startup.sh

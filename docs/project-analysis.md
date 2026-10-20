@@ -55,11 +55,11 @@ go build -o bin/guarding ./cmd
 ## 风险与改进建议
 
 - 配置默认路径与仓库示例路径不一致，容易导致首次运行失败。
-- `server` 和 `agentd` 自动探测外网 IP 时会访问 `8.8.8.8:80`，离线环境或受限网络中可能直接退出。
+- （已修复）`server` 和 `agentd` 自动探测 IP 不再依赖 `8.8.8.8:80`：支持 `Interface`/`ProbeAddr` 配置，探测失败回退网卡扫描。
 - `etc/service/server.conf` 包含明文数据库密码和 BasicAuth 示例口令，生产部署应改用环境变量或密钥管理。
 - 仓库只发现 `pkg/appframe/logger/logger_test.go` 一个测试文件，调度、RPC、任务状态机和 agent 执行链路缺少回归测试。
 - metrics 输入框架已经存在，但 `outputs.WriteSamples` 为空，当前不能确认指标数据会真正输出。
-- `taskState` 注释说明当前只看 `task_action`，没有综合所有 host 执行状态，任务状态语义仍有改进空间。
+- （已修复）`taskState` 现在综合 `task_action` 与各 host 状态，新增 `failed` 状态和 `?detail=1`。
 
 ## 建议优先级
 

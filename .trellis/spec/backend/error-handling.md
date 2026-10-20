@@ -99,15 +99,15 @@ All `/ibex/v1` JSON responses use the `{dat, err}` envelope from `ginx.Render`:
 
 ## Common Mistakes / Known Issues
 
-- `taskHostStdout` / `taskHostStderr` dereference `obj.Stdout` without checking
-  `obj == nil` (unknown host → nil-pointer panic → 500). New handlers must
-  nil-check model results.
+- Handlers must nil-check model results (`(nil, nil)` = not found) and render an
+  error instead of dereferencing; see `taskHostFromDB` in `handler.go`
+  (fixed: unknown host on `/task/:id/host/:host/stdout|stderr` used to panic).
 - `errorx.Dangerous(err)` defaults to HTTP 200; pass a code
   (`errorx.Dangerous(err, 500)`) when the client should see a failure status.
-- `taskState` (`handler.go:32`, TODO) derives state only from `task_action`,
-  not from per-host results.
+- `taskState` aggregates `task_action` + per-host counts via
+  `models.AggregateState`; unknown task id → `{"err":"task N not found"}`.
 - `cleanDoneTask` logs a `CleanDoneTask` error but still logs "done".
-- Config/IP errors call `os.Exit(1)` from library code (`GetOutboundIP` dials
-  `8.8.8.8:80`; offline hosts cannot start unless `Heartbeat.IP` (server) or a
-  non-`$ip` `Heartbeat.Host` (agentd) is configured).
+- Config errors still call `os.Exit(1)` inside `config.MustLoad`. Reusable
+  helpers must return errors instead (pattern: `netx.LocalIP` returns
+  `(ip, source, err)`; only the config loader exits, with a config hint).
 - Do not log raw secrets in error messages (BasicAuth, DB password, script stdin).

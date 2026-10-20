@@ -61,6 +61,26 @@ local samples; replace it when the `server` listens on a routable address.
 `agentd` reads `etc/service/agentd.conf` (tracked in git). Adjust
 `[Heartbeat].Host` and `[Heartbeat].Servers` to match your environment.
 
+Local IP auto-detection (server when `[Heartbeat].IP` is blank, agentd when
+`[Heartbeat].Host = "$ip"`) works offline. Order: `Interface` (NIC name) →
+UDP route probe to `ProbeAddr` (no packet sent; server default `8.8.8.8:80`,
+agentd default its first `Servers` entry) → first up, non-loopback,
+non-link-local IPv4 on a non-virtual NIC (skips lo/docker/veth/br-/cni/
+flannel/cali/virbr). IPv4 only. The chosen source is printed at startup.
+
+## Task state API
+
+`GET /ibex/v1/task/:id/state` returns `{"dat": "<state>", "err": ""}`:
+
+| state | meaning |
+|---|---|
+| `start` / `pause` / `cancel` / `kill` | some hosts still waiting/running/killing; value is the current action |
+| `failed` | all hosts finished, at least one `failed`/`timeout`/`killfailed` |
+| `done` | all hosts finished without failures |
+
+Unknown task id → `{"dat": "", "err": "task <id> not found"}` (previously `done`).
+`?detail=1` returns `{"state","action","total","counts":{"<host status>":n}}`.
+
 ## Validate
 
 Run the standard validation script:

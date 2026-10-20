@@ -80,7 +80,11 @@ Current state (don't overstate it):
 - Only three test files: `pkg/server/server_test.go` and
   `pkg/agentd/agentd_test.go` (`TestDefaultConfigFile`), and
   `pkg/appframe/logger/logger_test.go` (backends, concurrency).
-- No tests touch models, HTTP handlers, RPC, scheduler logic, or agent execution.
+- Unit tests now cover `models.AggregateState`, `router` task-state / host
+  output handlers (gin `httptest` + injectable `task*Fn` vars, no DB), and
+  `appframe/netx.LocalIP` (injected `Dial` / `Interfaces`). MySQL tests live
+  behind the `integration` build tag. RPC, scheduler and agent execution are
+  still untested.
 
 Rules for new work:
 
