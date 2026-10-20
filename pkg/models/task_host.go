@@ -53,7 +53,7 @@ func MarkDoneStatus(id, clock int64, host, status, stdout, stderr string) error 
 	}
 
 	return DB().Transaction(func(tx *gorm.DB) error {
-		err = DB().Table(tht(id)).Where("id=? and host=?", id, host).Updates(map[string]interface{}{
+		err := tx.Table(tht(id)).Where("id=? and host=?", id, host).Updates(map[string]interface{}{
 			"status": status,
 			"stdout": stdout,
 			"stderr": stderr,
@@ -62,7 +62,7 @@ func MarkDoneStatus(id, clock int64, host, status, stdout, stderr string) error 
 			return err
 		}
 
-		if err = tx.Where("id=? and host=?", id, host).Delete(&TaskHostDoing{}).Error; err != nil {
+		if err := tx.Where("id=? and host=?", id, host).Delete(&TaskHostDoing{}).Error; err != nil {
 			return err
 		}
 
@@ -119,6 +119,23 @@ func TaskHostStatus(id int64) ([]TaskHost, error) {
 	var ret []TaskHost
 	err := DB().Table(tht(id)).Select("id", "host", "status").Where("id=?", id).Order("ii").Find(&ret).Error
 	return ret, err
+}
+
+// TaskHostStatusCounts returns the number of hosts of task id per status.
+func TaskHostStatusCounts(id int64) (map[string]int64, error) {
+	var rows []struct {
+		Status string
+		Cnt    int64
+	}
+	err := DB().Table(tht(id)).Select("status, count(*) as cnt").Where("id=?", id).Group("status").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]int64, len(rows))
+	for _, r := range rows {
+		ret[r.Status] = r.Cnt
+	}
+	return ret, nil
 }
 
 func TaskHostGets(id int64) ([]TaskHost, error) {

@@ -29,20 +29,80 @@ func taskStderr(c *gin.Context) {
 	ginx.NewRender(c).Data(stderrs, err)
 }
 
-// TODO: 不能只判断task_action，还应该看所有的host执行情况
+// Injection points so handlers can be tested without a database.
+var (
+	taskMetaGetFn    = models.TaskMetaGetByID
+	taskActionGetFn  = func(id int64) (*models.TaskAction, error) { return models.TaskActionGet("id=?", id) }
+	taskHostCountsFn = models.TaskHostStatusCounts
+	taskHostGetFn    = models.TaskHostGet
+)
+
+// TaskStateDetail is returned by GET /task/:id/state?detail=1.
+type TaskStateDetail struct {
+	State  string           `json:"state"`
+	Action string           `json:"action"`
+	Total  int64            `json:"total"`
+	Counts map[string]int64 `json:"counts"`
+}
+
+// taskState aggregates task_action with the host results in task_host_N.
+// Default response: dat is the state string. With ?detail=1 dat is TaskStateDetail.
 func taskState(c *gin.Context) {
-	action, err := models.TaskActionGet("id=?", ginx.UrlParamInt64(c, "id"))
+	id := ginx.UrlParamInt64(c, "id")
+
+	meta, err := taskMetaGetFn(id)
+	if err != nil {
+		ginx.NewRender(c).Data("", err)
+		return
+	}
+	if meta == nil {
+		ginx.NewRender(c).Data("", fmt.Errorf("task %d not found", id))
+		return
+	}
+
+	action, err := taskActionGetFn(id)
 	if err != nil {
 		ginx.NewRender(c).Data("", err)
 		return
 	}
 
-	state := "done"
-	if action != nil {
-		state = action.Action
+	counts, err := taskHostCountsFn(id)
+	if err != nil {
+		ginx.NewRender(c).Data("", err)
+		return
 	}
 
-	ginx.NewRender(c).Data(state, err)
+	actionStr := ""
+	if action != nil {
+		actionStr = action.Action
+	}
+	state := models.AggregateState(actionStr, action != nil, counts)
+
+	if c.Query("detail") == "1" {
+		var total int64
+		for _, n := range counts {
+			total += n
+		}
+		if counts == nil {
+			counts = map[string]int64{}
+		}
+		ginx.NewRender(c).Data(TaskStateDetail{State: state, Action: actionStr, Total: total, Counts: counts}, nil)
+		return
+	}
+
+	ginx.NewRender(c).Data(state, nil)
+}
+
+// taskHostFromDB loads a host row and turns "not found" into an error.
+func taskHostFromDB(id int64, host string) (*models.TaskHost, error) {
+	obj, err := taskHostGetFn(id, host)
+	if err != nil {
+		return nil, err
+	}
+	if obj == nil {
+		return nil, fmt.Errorf("host %s not found in task %d", host, id)
+	}
+	return obj, nil
 }
 
 func taskResult(c *gin.Context) {
@@ -73,8 +133,12 @@ func taskHostStdout(c *gin.Context) {
 	host := ginx.UrlParamStr(c, "host")
 
 	if config.C.Output.ComeFrom == "database" || config.C.Output.ComeFrom == "" {
-		obj, err := models.TaskHostGet(id, host)
-		ginx.NewRender(c).Data(obj.Stdout, err)
+		obj, err := taskHostFromDB(id, host)
+		if err != nil {
+			ginx.NewRender(c).Data("", err)
+			return
+		}
+		ginx.NewRender(c).Data(obj.Stdout, nil)
 		return
 	}
 
@@ -106,8 +170,12 @@ func taskHostStderr(c *gin.Context) {
 	host := ginx.UrlParamStr(c, "host")
 
 	if config.C.Output.ComeFrom == "database" || config.C.Output.ComeFrom == "" {
-		obj, err := models.TaskHostGet(id, host)
-		ginx.NewRender(c).Data(obj.Stderr, err)
+		obj, err := taskHostFromDB(id, host)
+		if err != nil {
+			ginx.NewRender(c).Data("", err)
+			return
+		}
+		ginx.NewRender(c).Data(obj.Stderr, nil)
 		return
 	}
 
