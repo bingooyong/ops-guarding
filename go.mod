@@ -9,7 +9,7 @@ require (
 	github.com/gin-contrib/pprof v1.4.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/koding/multiconfig v0.0.0-20171124222453-69c27309b2d7
-	github.com/mattn/go-isatty v0.0.20
+	github.com/mattn/go-isatty v0.0.24
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/go-cache v0.0.0-20130306151617-9fc39e0dbf62
 	github.com/shirou/gopsutil/v3 v3.24.3
