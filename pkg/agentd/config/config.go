@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/koding/multiconfig"
 	"log"
-	"net"
 	"ops-guarding/pkg/appframe/file"
 	"ops-guarding/pkg/appframe/httpx"
+	"ops-guarding/pkg/appframe/netx"
 	"os"
 	"strings"
 	"sync"
@@ -64,12 +64,14 @@ func MustLoad(fpaths ...string) {
 		}
 
 		if C.Heartbeat.Host == "$ip" {
-			C.Heartbeat.Endpoint = fmt.Sprint(GetOutboundIP())
-			if C.Heartbeat.Endpoint == "" {
-				fmt.Println("ip auto got is blank")
+			ip, source, err := netx.LocalIP(netx.Options{Interface: C.Heartbeat.Interface, ProbeAddr: C.ProbeAddr()})
+			if err != nil {
+				fmt.Println("host ip auto detect failed:", err)
+				fmt.Println("hint: set [Heartbeat] Host, Interface or ProbeAddr in agentd config")
 				os.Exit(1)
 			}
-			fmt.Println("host.ip:", C.Heartbeat.Endpoint)
+			C.Heartbeat.Endpoint = ip.String()
+			fmt.Printf("host.ip: %s (source: %s)\n", C.Heartbeat.Endpoint, source)
 		}
 
 		host, err := C.GetHost()
@@ -112,6 +114,21 @@ type Heartbeat struct {
 	Servers  []string
 	Host     string
 	Endpoint string
+	// Interface: NIC name used when Host is "$ip".
+	Interface string
+	// ProbeAddr: UDP route probe target; default is the first Servers entry.
+	ProbeAddr string
+}
+
+// ProbeAddr returns the configured probe address or the first RPC server.
+func (c *Config) ProbeAddr() string {
+	if c.Heartbeat.ProbeAddr != "" {
+		return c.Heartbeat.ProbeAddr
+	}
+	if len(c.Heartbeat.Servers) > 0 {
+		return c.Heartbeat.Servers[0]
+	}
+	return ""
 }
 
 func (c *Config) IsDebugMode() bool {
@@ -128,20 +145,6 @@ func (c *Config) GetHost() (string, error) {
 	}
 
 	return c.Heartbeat.Host, nil
-}
-
-// Get preferred outbound ip of this machine
-func GetOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		fmt.Println("auto get outbound ip fail:", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP
 }
 
 func GetInterval() time.Duration {

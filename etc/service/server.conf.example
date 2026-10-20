@@ -50,6 +50,10 @@ Listen = "0.0.0.0:20090"
 [Heartbeat]
 # local sample uses loopback to avoid outbound IP auto-detection
 IP = "127.0.0.1"
+# when IP is blank: NIC name to take the IPv4 from (optional)
+# Interface = "eth0"
+# when IP is blank: UDP route probe target (default "8.8.8.8:80"), then NIC scan
+# ProbeAddr = "10.0.0.1:20090"
 # unit: ms
 Interval = 1000
 

@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"net"
 	"ops-guarding/pkg/appframe/httpx"
 	"ops-guarding/pkg/appframe/logx"
+	"ops-guarding/pkg/appframe/netx"
 	"ops-guarding/pkg/appframe/storage"
 	"os"
 	"strings"
@@ -60,13 +60,19 @@ func MustLoad(fpaths ...string) {
 		m.MustLoad(C)
 
 		if C.Heartbeat.IP == "" {
-			// auto detect
-			C.Heartbeat.IP = fmt.Sprint(GetOutboundIP())
-
-			if C.Heartbeat.IP == "" {
-				fmt.Println("heartbeat ip auto got is blank")
+			// auto detect: Interface -> UDP probe -> NIC scan
+			probeAddr := C.Heartbeat.ProbeAddr
+			if probeAddr == "" {
+				probeAddr = netx.DefaultProbeAddr
+			}
+			ip, source, err := netx.LocalIP(netx.Options{Interface: C.Heartbeat.Interface, ProbeAddr: probeAddr})
+			if err != nil {
+				fmt.Println("heartbeat ip auto detect failed:", err)
+				fmt.Println("hint: set [Heartbeat] IP, Interface or ProbeAddr in server config")
 				os.Exit(1)
 			}
+			C.Heartbeat.IP = ip.String()
+			fmt.Printf("heartbeat ip: %s (source: %s)\n", C.Heartbeat.IP, source)
 		}
 
 		port := strings.Split(C.RPC.Listen, ":")[1]
@@ -102,7 +108,11 @@ type RPC struct {
 }
 
 type Heartbeat struct {
-	IP        string
+	IP string
+	// Interface: NIC name used for IP auto-detection when IP is blank.
+	Interface string
+	// ProbeAddr: UDP route probe target (default netx.DefaultProbeAddr).
+	ProbeAddr string
 	Interval  int64
 	LocalAddr string
 }
@@ -114,18 +124,4 @@ type Output struct {
 
 func (c *Config) IsDebugMode() bool {
 	return c.RunMode == "debug"
-}
-
-// Get preferred outbound ip of this machine
-func GetOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		fmt.Println("auto get outbound ip fail:", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP
 }
