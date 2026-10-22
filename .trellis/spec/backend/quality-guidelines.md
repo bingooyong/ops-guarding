@@ -32,8 +32,8 @@ Run fresh, read the output, and report the evidence before claiming completion.
 
 ### Go toolchain
 
-`go.mod` pins `go 1.26.0` + `toolchain go1.26.9`. Builders need Go >= 1.26.0;
-with the default `GOTOOLCHAIN=auto` an older local Go downloads go1.26.9
+`go.mod` pins `go 1.26.0` + `toolchain go1.26.10`. Builders need Go >= 1.26.0;
+with the default `GOTOOLCHAIN=auto` an older local Go downloads go1.26.10
 automatically (into `GOMODCACHE`, i.e. `.cache/go-mod` when run via
 `validate.sh`). Do not lower the `go` line: `golang.org/x/net` >= 0.60 and
 `golang.org/x/crypto` >= 0.56 require Go 1.26, and Go 1.25 is out of support.
@@ -48,7 +48,7 @@ the same ref cancels the older one.
 
 | Job | Go | Steps (all blocking) |
 |-----|----|----------------------|
-| `test (go go.mod)` — required leg | from `go.mod` (`toolchain go1.26.9`) via `setup-go` `go-version-file` | `go mod download` + `go mod verify` → `go build ./...` → `./scripts/validate.sh` → `go vet ./...` → gofmt check (fails if `gofmt -l` lists any tracked `.go` file) → `go test -race -count=1 ./...` → `go mod tidy` diff check |
+| `test (go go.mod)` — required leg | from `go.mod` (`toolchain go1.26.10`) via `setup-go` `go-version-file` | `go mod download` + `go mod verify` → `go build ./...` → `./scripts/validate.sh` → `go vet ./...` → gofmt check (fails if `gofmt -l` lists any tracked `.go` file) → `go test -race -count=1 ./...` → `go mod tidy` diff check |
 | `test (go stable)` — forward-compat leg | latest stable release | same as above except the tidy check (a newer Go may legitimately rewrite the `go`/`toolchain` lines) |
 | `govulncheck` | from `go.mod` | `govulncheck@v1.9.0 ./...` — fails if the code calls a known vulnerability; module-only findings with no fix (e.g. GO-2026-5932 `x/crypto/openpgp`, not imported) are informational |
 
