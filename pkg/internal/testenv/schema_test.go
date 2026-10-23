@@ -47,10 +47,12 @@ func TestSchemaMatchesIbexSQL(t *testing.T) {
 		t.Fatalf("parsed %d tables from ibex.sql, want %d", len(want), 5+taskHostShards)
 	}
 
-	env := New(t)
+	// Always inspect the sqlite DDL, even when OPS_MYSQL_DSN selects MySQL for New().
+	db, cleanup := newSQLite(t)
+	defer cleanup()
 	for table, cols := range want {
 		var got []string
-		rows, err := env.DB.Raw("SELECT name FROM pragma_table_info(?)", table).Rows()
+		rows, err := db.Raw("SELECT name FROM pragma_table_info(?)", table).Rows()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Required leg: Go from go.mod (`toolchain go1.26.9`, `go 1.26.0`).
+          # Required leg: Go from go.mod (`go` / `toolchain` lines).
           - go: go.mod
             version-file: go.mod
             version: ''
@@ -73,6 +73,12 @@ jobs:
       - name: Race tests
         run: go test -race -count=1 ./...
 
+      - name: Coverage floor
+        # Cross-package coverage (-coverpkg=./...) must stay >= .github/coverage-floor.txt.
+        # Only on the go.mod leg; the floor is raised by hand (scripts/coverage-check.sh --update).
+        if: matrix.go == 'go.mod'
+        run: ./scripts/coverage-check.sh
+
       - name: go mod tidy check
         # Only on the go.mod leg: a newer toolchain may legitimately rewrite go/toolchain lines.
         if: matrix.go == 'go.mod'
@@ -98,3 +104,48 @@ jobs:
       - name: govulncheck
         # Blocking gate: exits non-zero if the code calls any known vulnerability.
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      # The throwaway service container above: safe for the tests and the smoke to write to.
+      OPS_MYSQL_DSN: root:ci@tcp(127.0.0.1:3306)/ibex?charset=utf8mb4&parseTime=True&loc=Local
+      SMOKE_CONFIRM_DISPOSABLE_DB: '1'
+      SMOKE_MYSQL_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Load sql/ibex.sql
+        run: |
+          if ! command -v mysql >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+          fi
+          mysql --protocol=tcp -h 127.0.0.1 -uroot -pci < sql/ibex.sql
+          mysql --protocol=tcp -h 127.0.0.1 -uroot -pci -e 'SHOW TABLES' ibex | wc -l
+
+      - name: Integration tests (-tags integration, real MySQL)
+        # Reruns the whole suite on MySQL (testenv picks MySQL when OPS_MYSQL_DSN is set)
+        # plus the integration-tagged tests, with the race detector.
+        run: go test -tags integration -race -count=1 ./...
+
+      - name: Smoke - server + agentd + task reaches done
+        run: ./scripts/smoke-e2e.sh
