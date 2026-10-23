@@ -21,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // Env is a ready-to-use test environment. Package-level globals
@@ -89,7 +90,7 @@ func newSQLite(t testing.TB) (*gorm.DB, func()) {
 	t.Helper()
 
 	dsn := fmt.Sprintf("file:testenv%d?mode=memory&cache=shared", seq.Add(1))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: quietLogger()})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -100,11 +101,24 @@ func newSQLite(t testing.TB) (*gorm.DB, func()) {
 	}
 	sqlDB.SetMaxOpenConns(1)
 
-	for _, stmt := range SQLiteSchema() {
-		if err := db.Exec(stmt).Error; err != nil {
-			t.Fatalf("create sqlite schema: %v\n%s", err, stmt)
+	// One transaction: ~100 separate DDL commits make each New() 10x slower.
+	err = db.Transaction(func(tx *gorm.DB) error {
+		for _, stmt := range SQLiteSchema() {
+			if err := tx.Exec(stmt).Error; err != nil {
+				return fmt.Errorf("%w\n%s", err, stmt)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("create sqlite schema: %v", err)
 	}
 
 	return db, func() { _ = sqlDB.Close() }
+}
+
+// quietLogger silences GORM's per-query logging ("record not found" is
+// routine for the models' nil-on-missing lookups).
+func quietLogger() gormlogger.Interface {
+	return gormlogger.Default.LogMode(gormlogger.Silent)
 }

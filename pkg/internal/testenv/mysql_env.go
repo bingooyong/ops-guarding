@@ -43,7 +43,7 @@ func newMySQL(t testing.TB) (*gorm.DB, func(), bool) {
 	}
 
 	testDSN := dsnDBRe.ReplaceAllString(dsn, "/"+name+"$2")
-	db, err := gorm.Open(mysql.Open(testDSN), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(testDSN), &gorm.Config{Logger: quietLogger()})
 	if err != nil {
 		t.Fatalf("open mysql: %v", err)
 	}
