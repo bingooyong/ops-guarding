@@ -12,5 +12,8 @@ func CmdStart(cmd *exec.Cmd) error {
 }
 
 func CmdKill(cmd *exec.Cmd) error {
+	if cmd == nil || cmd.Process == nil {
+		return errNoProcess
+	}
 	return cmd.Process.Kill()
 }

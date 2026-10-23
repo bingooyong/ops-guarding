@@ -218,6 +218,62 @@ func TestAssignReplaysFinishedResultWithoutRunning(t *testing.T) {
 	}
 }
 
+func writeFiles(t *testing.T, dir string, files map[string]string) {
+	t.Helper()
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// A redo (new clock) must start from empty buffers and a fresh stdin.
+func TestRerunResetsOutputAndStdin(t *testing.T) {
+	e := newAgentEnv(t)
+	e.prepared(51, "cat; echo ' ran'\n", "", "in")
+
+	assign(51, 1, "start")
+	task := waitStatus(t, 51, "success")
+	if got := task.GetStdout(); got != "in ran\n" {
+		t.Fatalf("first run stdout = %q", got)
+	}
+
+	assign(51, 2, "start")
+	task = waitStatus(t, 51, "success")
+	if got := task.GetStdout(); got != "in ran\n" {
+		t.Fatalf("rerun stdout = %q, want %q (buffer reset + stdin re-read)", got, "in ran\n")
+	}
+	if got := e.read(51, "stdout"); got != "in ran\n" {
+		t.Fatalf("persisted stdout = %q", got)
+	}
+}
+
+// A process that cannot be started must end failed (reported), not stay running.
+func TestStartFailureReportsFailed(t *testing.T) {
+	e := newAgentEnv(t)
+	e.prepared(52, "true\n", "", "")
+	t.Setenv("PATH", "") // exec.Command("sh") cannot be resolved -> Start fails
+
+	assign(52, 1, "start")
+
+	task, _ := Locals.GetTask(52)
+	if got := task.GetStatus(); got != "failed" {
+		t.Fatalf("status = %q, want failed", got)
+	}
+	if got := task.GetStderr(); !strings.Contains(got, "sh") {
+		t.Fatalf("stderr = %q, want start error text", got)
+	}
+	if got := e.read(52, "1.done"); got != "failed" {
+		t.Fatalf("done flag = %q, want failed", got)
+	}
+	if rts := Locals.ReportTasks(); len(rts) != 1 || rts[0].Status != "failed" || rts[0].Stderr == "" {
+		t.Fatalf("ReportTasks = %+v", rts)
+	}
+	if task.GetAlive() {
+		t.Fatal("alive must be false after a failed start")
+	}
+}
+
 func TestAssignKillUnknownTaskIsIgnored(t *testing.T) {
 	newAgentEnv(t)
 	assign(404, 1, "kill")

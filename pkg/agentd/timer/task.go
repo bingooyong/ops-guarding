@@ -2,6 +2,7 @@ package timer
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"ops-guarding/pkg/agentd/client"
@@ -14,7 +15,28 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
+
+var errNoProcess = errors.New("no process to kill")
+
+// killGrace is how long killProcess waits for runProcess to finish after a
+// successful kill signal before it records the result itself (a detached
+// grandchild holding the output pipe can keep Wait blocked).
+var killGrace = 5 * time.Second
+
+// lockedWriter lets exec's copy goroutines append to a Task buffer under the
+// same lock the readers (GetStdout/GetStderr) use.
+type lockedWriter struct {
+	t   *Task
+	buf *bytes.Buffer
+}
+
+func (w lockedWriter) Write(p []byte) (int, error) {
+	w.t.Lock()
+	defer w.t.Unlock()
+	return w.buf.Write(p)
+}
 
 type Task struct {
 	sync.Mutex
@@ -24,11 +46,13 @@ type Task struct {
 	Action string
 	Status string
 
-	alive  bool
-	Cmd    *exec.Cmd
-	Stdout bytes.Buffer
-	Stderr bytes.Buffer
-	Stdin  *bytes.Reader
+	alive         bool
+	killRequested bool          // set by killProcess before signalling; guarded by the lock
+	exited        chan struct{} // closed by runProcess after Wait + persist; nil if no process
+	Cmd           *exec.Cmd
+	Stdout        bytes.Buffer
+	Stderr        bytes.Buffer
+	Stdin         *bytes.Reader
 
 	Args     string
 	Account  string
@@ -73,6 +97,28 @@ func (t *Task) GetStderr() string {
 	out := t.Stderr.String()
 	t.Unlock()
 	return out
+}
+
+func (t *Task) setKillRequested(v bool) {
+	t.Lock()
+	t.killRequested = v
+	t.Unlock()
+}
+
+func (t *Task) isKillRequested() bool {
+	t.Lock()
+	v := t.killRequested
+	t.Unlock()
+	return v
+}
+
+// failStart records a permanent start failure as a reportable `failed` result.
+func (t *Task) failStart(err error) {
+	t.Lock()
+	t.Stderr.WriteString(fmt.Sprintf("agentd: cannot start task: %v\n", err))
+	t.Unlock()
+	t.SetStatus("failed")
+	persistResult(t)
 }
 
 func (t *Task) ResetBuff() {
@@ -222,6 +268,11 @@ func (t *Task) start() {
 		return
 	}
 
+	// A redo (new clock) starts from empty output and a fresh stdin.
+	t.ResetBuff()
+	t.Stdin = bytes.NewReader([]byte(t.StdinStr))
+	t.setKillRequested(false)
+
 	args := t.Args
 	if args != "" {
 		args = strings.Replace(args, ",,", "' '", -1)
@@ -239,6 +290,7 @@ func (t *Task) start() {
 	loginUser, err := user.Current()
 	if err != nil {
 		log.Println("E: cannot get current login user:", err)
+		t.failStart(err)
 		return
 	}
 
@@ -256,8 +308,8 @@ func (t *Task) start() {
 		cmd.Dir = loginUser.HomeDir
 	}
 
-	cmd.Stdout = &t.Stdout
-	cmd.Stderr = &t.Stderr
+	cmd.Stdout = lockedWriter{t, &t.Stdout}
+	cmd.Stderr = lockedWriter{t, &t.Stderr}
 	cmd.Stdin = t.Stdin
 
 	t.Cmd = cmd
@@ -265,22 +317,35 @@ func (t *Task) start() {
 	err = CmdStart(cmd)
 	if err != nil {
 		log.Printf("E: cannot start cmd of task[%d]: %v", t.Id, err)
+		t.failStart(err)
 		return
 	}
 
-	go runProcess(t)
+	// Mark alive before the goroutine runs so a second start() cannot slip in.
+	exited := make(chan struct{})
+	t.Lock()
+	t.exited = exited
+	t.alive = true
+	t.Unlock()
+
+	go runProcess(t, exited)
 }
 
 func (t *Task) kill() {
 	go killProcess(t)
 }
 
-func runProcess(t *Task) {
-	t.SetAlive(true)
+func runProcess(t *Task, exited chan struct{}) {
+	defer close(exited) // runs last: alive is already false when killProcess resumes
 	defer t.SetAlive(false)
 
+	// Wait also waits for the output copy goroutines, so the buffers are
+	// complete once it returns.
 	err := t.Cmd.Wait()
-	if err != nil {
+	if t.isKillRequested() {
+		t.SetStatus("killed")
+		log.Printf("D: process of task[%d] killed", t.Id)
+	} else if err != nil {
 		if strings.Contains(err.Error(), "signal: killed") {
 			t.SetStatus("killed")
 			log.Printf("D: process of task[%d] killed", t.Id)
@@ -313,19 +378,44 @@ func persistResult(t *Task) {
 }
 
 func killProcess(t *Task) {
-	t.SetAlive(true)
-	defer t.SetAlive(false)
-
 	log.Printf("D: begin kill process of task[%d]", t.Id)
 
-	err := CmdKill(t.Cmd)
-	if err != nil {
-		t.SetStatus("killfailed")
-		log.Printf("D: kill process of task[%d] fail: %v", t.Id, err)
-	} else {
+	cmd := t.Cmd
+	if cmd == nil || cmd.Process == nil {
+		// Nothing is running: a finished result replayed from disk after a restart,
+		// or a start that failed. Record the requested outcome so it converges.
+		t.SetAlive(true)
+		defer t.SetAlive(false)
+		log.Printf("D: task[%d] has no process to kill", t.Id)
 		t.SetStatus("killed")
-		log.Printf("D: process of task[%d] killed", t.Id)
+		persistResult(t)
+		return
 	}
 
-	persistResult(t)
+	t.Lock()
+	t.killRequested = true
+	exited := t.exited
+	t.Unlock()
+
+	if err := CmdKill(cmd); err != nil {
+		t.SetStatus("killfailed")
+		log.Printf("D: kill process of task[%d] fail: %v", t.Id, err)
+		persistResult(t)
+		return
+	}
+
+	if exited == nil {
+		return
+	}
+
+	// runProcess owns the final state: it sets `killed` and persists the
+	// complete output once Wait returns.
+	select {
+	case <-exited:
+		log.Printf("D: process of task[%d] killed", t.Id)
+	case <-time.After(killGrace):
+		log.Printf("W: task[%d] still not reaped %s after kill, recording result", t.Id, killGrace)
+		t.SetStatus("killed")
+		persistResult(t)
+	}
 }
