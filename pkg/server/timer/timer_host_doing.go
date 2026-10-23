@@ -26,6 +26,10 @@ func loopCacheHostDoing() {
 	}
 }
 
+// RefreshHostDoing reloads the host_doing cache once (used by tests that
+// drive the scheduler/RPC without the background loop).
+func RefreshHostDoing() error { return cacheHostDoing() }
+
 func cacheHostDoing() error {
 	lst, err := models.DoingHostList("")
 	if err != nil {

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -21,9 +22,6 @@ func Start(listen string) {
 }
 
 func serve(listen string) {
-	server := rpc.NewServer()
-	server.Register(new(Server))
-
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		fmt.Printf("fail to listen on: %s, error: %v\n", listen, err)
@@ -31,6 +29,15 @@ func serve(listen string) {
 	}
 
 	fmt.Println("rpc.listening:", listen)
+
+	Serve(l)
+}
+
+// Serve accepts agent connections on l until l is closed. It is split out of
+// Start so tests can serve on an ephemeral listener.
+func Serve(l net.Listener) {
+	server := rpc.NewServer()
+	server.Register(new(Server))
 
 	var mh codec.MsgpackHandle
 	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
@@ -40,6 +47,9 @@ func serve(listen string) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			logger.Warningf("listener accept error: %v", err)
 			time.Sleep(duration)
 			continue
