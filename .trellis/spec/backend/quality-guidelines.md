@@ -92,10 +92,28 @@ Current state (don't overstate it):
 - Unit tests now cover `models.AggregateState`, `router` task-state / host
   output handlers (gin `httptest` + injectable `task*Fn` vars, no DB), and
   `appframe/netx.LocalIP` (injected `Dial` / `Interfaces`). MySQL tests live
-  behind the `integration` build tag. Scheduler/RPC/agent execution are covered
-  only through the chain tests above; focused unit tests are still missing.
-- Coverage (Go 1.26.10): per-package default mode 15.3% total; with
-  `-coverpkg=./...` (counts the e2e tests' reach into models/logic/rpc) 30.9%.
+  behind the `integration` build tag.
+- Focused unit tests: `pkg/server/rpc` (`method_test.go`, `serve_test.go` incl.
+  the msgpack wire via `rpc.Serve`), `pkg/server/logic` (batch, tolerance→pause,
+  pause hosts, non-start actions, missing meta/action, done-task cleanup,
+  timeout grace), `pkg/server/timer` (doing cache, orphan/mine scheduling,
+  long-task cancel, dead-scheduler takeover), `pkg/agentd/timer`
+  (`task_exec_test.go`: success/failed/stdin/args, duplicate+new-clock
+  assignment, replay of finished results, unknown action, report truncation
+  at 65535, `Clean`; `task_kill_test.go`: kill, `!race` only — see below).
+  Shared helpers: `testenv.Env.SeedTask/HostStatuses/Doing/Action`.
+- Known product defects found by these tests (not fixed yet, details in
+  `.trellis/tasks/*/research/findings-subtask-b.md` of the archived/active
+  task): data race in `agentd/timer.killProcess` (kill test excluded under
+  `-race`), nil-pointer panic when a kill is assigned to a local task without a
+  process.
+- Agent execution tests pre-populate `MetaDir/<id>/{script,args,account,stdin,.write}`
+  so `Task.prepare` reads from disk and needs no RPC server; use the current
+  OS user as account (root runs directly, others always run via `sh -c`).
+  `testenv.New` costs ~0.2s under `-race` (sqlite DDL); prefer table-driven
+  subtests that share one env only when state does not leak.
+- Coverage (Go 1.26.10): per-package default mode 22.6% total; with
+  `-coverpkg=./...` (counts cross-package reach of e2e/loopback tests) 37.4%.
   Use the `-coverpkg=./...` figure for any coverage gate.
 
 Rules for new work:
@@ -106,7 +124,9 @@ Rules for new work:
   or `pkg/agentd/timer` should come with a focused test. Follow the layer plan
   in `docs/ai-knowledge/task-chain-regression-tests.md` (model-level, HTTP,
   RPC, agent-execution tests).
-- Agent execution tests use `t.TempDir()` as `MetaDir` and small shell scripts.
+- Agent execution tests use `t.TempDir()` as `MetaDir` and small shell scripts
+  (`newAgentEnv` in `pkg/agentd/timer/task_exec_test.go`); poll for status with a
+  deadline, never fixed long sleeps.
 - Database tests must use a disposable database and skip with a clear message
   when none is configured; never use `etc/service/server.conf`'s DB or edit
   that file in place.
