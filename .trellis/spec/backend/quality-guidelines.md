@@ -110,13 +110,15 @@ Current state (don't overstate it):
   long-task cancel, dead-scheduler takeover), `pkg/agentd/timer`
   (`task_exec_test.go`: success/failed/stdin/args, duplicate+new-clock
   assignment, replay of finished results, unknown action, report truncation
-  at 65535, `Clean`; `task_kill_test.go`: kill, `!race` only — see below).
+  at 65535, `Clean`; `task_kill_test.go`: kill, grace fallback, alive flag).
   Shared helpers: `testenv.Env.SeedTask/HostStatuses/Doing/Action`.
-- Known product defects found by these tests (not fixed yet, details in
-  `.trellis/tasks/*/research/findings-subtask-b.md` of the archived/active
-  task): data race in `agentd/timer.killProcess` (kill test excluded under
-  `-race`), nil-pointer panic when a kill is assigned to a local task without a
-  process.
+- agentd kill/exec fixes (task `agentd-kill-fixes`) are covered by regression
+  tests that run under `-race` (no `!race` exclusion any more):
+  `TestKillWhileOutputIsStreaming` (race witness), `TestKillTaskWithoutProcess`
+  (nil/unstarted `Cmd`, replayed result), `TestKillGraceFallbackRecordsResult`,
+  `TestRerunResetsOutputAndStdin`, `TestStartFailureReportsFailed`,
+  `TestStartMarksTaskAliveSynchronously`. When changing `pkg/agentd/timer/task.go`
+  run `go test -race -count=3 ./pkg/agentd/...`.
 - Agent execution tests pre-populate `MetaDir/<id>/{script,args,account,stdin,.write}`
   so `Task.prepare` reads from disk and needs no RPC server; use the current
   OS user as account (root runs directly, others always run via `sh -c`).
@@ -193,6 +195,9 @@ Based on `skills/ai-delivery-quality-gates/SKILL.md`:
 
 ## Known Gaps (tracked, not yet fixed)
 
+- `Task.prepare()` failure in agentd (meta RPC down, disk error) leaves the task `running`
+  and repeat assignments are ignored (same id/clock/action), so it is never retried; only the
+  server timeout ends it. Needs a retry decision (drop from `Locals` vs mark `failed`).
 - Branch protection does not yet require the CI checks (admin must enable; see above).
 - The `integration` job was only verifiable on GitHub (no local MySQL); watch its first runs.
 - `outputs.WriteSamples` is empty; metrics inputs are not started by agentd.

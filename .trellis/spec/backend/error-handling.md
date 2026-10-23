@@ -61,6 +61,12 @@ matches where your code runs:
 - agentd has no recovery middleware for its loops. Errors are logged with the
   std `log` package (`log.Printf("E: ... %v", err)`) and the function returns;
   the next heartbeat retries (`timer/heartbeat.go`, `timer/task.go`).
+- Task execution (`timer/task.go`): output buffers are written through
+  `lockedWriter` (same lock as `GetStdout`); `runProcess` owns the final status and
+  persists after `Wait`; `killProcess` only signals and waits up to `killGrace`, and
+  is safe for tasks without a process (status `killed`). Permanent start failures
+  (`CmdStart`, `user.Current`) end as `failed` with the error in stderr
+  (`Task.failStart`), never as a stuck `running`.
 - After an RPC failure, call `client.CloseCli()` so the next call reconnects.
 - Metrics input goroutines guard with `defer recover()` + `runtimex.Stack(3)`
   (`InputReader.gatherOnce`). Do the same for any new goroutine that runs
