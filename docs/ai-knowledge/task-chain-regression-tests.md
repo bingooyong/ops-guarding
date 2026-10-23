@@ -6,7 +6,7 @@ Use this document when adding functional regression tests for the full task life
 
 ## Current Status
 
-`pkg/server/e2e` (HTTP + scheduler + RPC + state/result/output, sqlite by default) and `pkg/agentd/timer/loopback_test.go` (real agentd against an in-process RPC server) cover the chain; `pkg/internal/testenv` provides the disposable database. Run the MySQL variant with `OPS_MYSQL_DSN=... go test -tags integration ./pkg/...`. Remaining gaps: focused unit tests for rpc/logic/agent execution edge cases, kill flow, and a CI job for the MySQL variant (see Trellis tasks `unit-tests-rpc-logic-agentd`, `ci-quality-gates`).
+`pkg/server/e2e` (HTTP + scheduler + RPC + state/result/output, sqlite by default) and `pkg/agentd/timer/loopback_test.go` (real agentd against an in-process RPC server) cover the chain; `pkg/internal/testenv` provides the disposable database. Run the MySQL variant with `OPS_MYSQL_DSN=... go test -tags integration ./pkg/...`. Remaining gaps: focused unit tests for rpc/logic/agent execution edge cases, kill flow, and tracking the first runs of the CI `integration` job (MySQL variant + `scripts/smoke-e2e.sh`) added by Trellis task `ci-quality-gates`; the coverage floor lives in `.github/coverage-floor.txt`.
 
 ## Recommended Test Layers
 

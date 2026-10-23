@@ -103,6 +103,33 @@ The smoke script builds the binary, starts `agentd`, and checks `http://127.0.0.
 
 For `server`, the script checks `http://127.0.0.1:10090/ping` when the configured database is available. If MySQL is not available, the script reports the database dependency as the expected startup blocker.
 
+## CI Quality Gates
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
+
+| Check name | What it enforces |
+|------------|------------------|
+| `test (go go.mod)` | build, `validate.sh`, vet, gofmt, `go test -race`, **coverage floor**, `go mod tidy` diff |
+| `test (go stable)` | same without the tidy diff and coverage floor (forward-compat leg) |
+| `govulncheck` | no reachable known vulnerabilities |
+| `integration` | whole suite on a real MySQL 8.4 service container (`-tags integration`, `OPS_MYSQL_DSN`) plus `scripts/smoke-e2e.sh` (real `server` + `agentd` processes; a task must reach `done`) |
+
+Coverage floor: `scripts/coverage-check.sh` measures total statement coverage
+(`go test -coverpkg=./...`), prints a per-package table and fails if it is below
+`.github/coverage-floor.txt` (measured minus 1 point when set). Raise it after adding tests:
+
+```bash
+./scripts/coverage-check.sh --update   # only ever raises the floor; commit the file
+```
+
+Never lower the floor to make CI pass. `scripts/smoke-e2e.sh` writes to its database and
+refuses to run without `SMOKE_CONFIRM_DISPOSABLE_DB=1`; use it only against a throwaway MySQL.
+
+**Branch protection (repo admin, one-time)**: GitHub -> Settings -> Branches -> Add rule
+(or Rulesets) for `main`: enable *Require status checks to pass before merging* and *Require
+branches to be up to date*, then select `test (go go.mod)`, `test (go stable)`,
+`govulncheck` and `integration`. Check names appear in the picker only after they have run once.
+
 ## Database Bootstrap
 
 Create the local database with:

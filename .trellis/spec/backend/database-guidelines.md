@@ -119,7 +119,10 @@ Inside the closure, every statement must use `tx`, not `DB()`.
   `OPS_MYSQL_DSN` (skip when unset), e.g. `pkg/models/task_host_integration_test.go`.
   When you add a table or column to `sql/ibex.sql`, update
   `pkg/internal/testenv/schema_sqlite.go` too (`TestSchemaMatchesIbexSQL` enforces it).
-  Integration tests are not run in CI yet. Prefer extracting
+  The CI `integration` job runs the whole suite with `-tags integration` against a MySQL
+  service container (`OPS_MYSQL_DSN` points at the `ibex` database loaded from `sql/ibex.sql`;
+  `testenv.New` creates unique `og_test_*` databases beside it). `TestSchemaMatchesIbexSQL`
+  always inspects the sqlite DDL, whatever backend `New` would pick. Prefer extracting
   pure functions (`AggregateState`) and handler injection vars for unit tests.
 - Per-status host counts: `TaskHostStatusCounts(id)` (GROUP BY on `tht(id)`).
 - Previously no tests ran against a database; `docs/ai-knowledge/task-chain-regression-tests.md`

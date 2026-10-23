@@ -9,8 +9,9 @@
 Quality is enforced twice: locally by scripts and repo-local AI skills, and on
 every push / pull request to `main` by GitHub Actions (`.github/workflows/ci.yml`).
 CI runs the same commands as the local gates below, so a green local run predicts
-a green CI run. **Test coverage is still minimal**, so CI catches build, vet,
-format, race, module-hygiene and vulnerability regressions, not behaviour bugs.
+a green CI run. CI also enforces a **coverage floor** (`.github/coverage-floor.txt`,
+ratchet) and runs the suite plus a server+agentd+task smoke on a real MySQL
+(`integration` job); overall coverage is still modest (see Testing Requirements).
 The working rules come from `docs/ai-knowledge/ai-agent-rules.md`,
 `docs/ai-knowledge/reusable-patterns.md`, and the skills in `skills/`.
 
@@ -26,6 +27,8 @@ Run fresh, read the output, and report the evidence before claiming completion.
 | Static checks (any Go change) | `go vet ./...` and `gofmt -l $(git ls-files '*.go')` | exit 0, gofmt prints nothing |
 | Race check (logger / concurrency changes) | `go test -race -count=1 ./pkg/appframe/logger` (or the touched package) | PASS |
 | Startup smoke (process / config / router changes) | `./scripts/smoke-startup.sh` | `smoke: PASS`; starts agentd + server and curls `/ping`; server may stop at the documented DB blocker without MySQL; requires a local `etc/service/server.conf` (gitignored, copy from `server.conf.example`) |
+| Coverage floor (any Go change; CI-enforced) | `./scripts/coverage-check.sh` | `coverage: PASS`; total (`-coverpkg=./...`) >= `.github/coverage-floor.txt`; `--update` only raises the floor (measured - 1.0) |
+| Real-process smoke (server/agentd/RPC/schema changes; CI-enforced) | `SMOKE_CONFIRM_DISPOSABLE_DB=1 SMOKE_MYSQL_PASSWORD=... ./scripts/smoke-e2e.sh` against a **disposable** MySQL that has `sql/ibex.sql` loaded | `smoke-e2e: PASS` (server + agentd `/ping`, task reaches `done`, result `success`, stdout `smoke-ok`); normally left to the CI `integration` job |
 | Module hygiene (any go.mod / go.sum / import change) | `go mod verify`, then `go mod tidy && git diff --exit-code go.mod go.sum` | `all modules verified`; tidy produces no diff |
 | Vulnerabilities (any dependency or toolchain change) | `go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...` | exit 0, `Your code is affected by 0 vulnerabilities.` |
 | Hygiene | `git status --short` | only intended paths changed |
@@ -48,9 +51,10 @@ the same ref cancels the older one.
 
 | Job | Go | Steps (all blocking) |
 |-----|----|----------------------|
-| `test (go go.mod)` — required leg | from `go.mod` (`toolchain go1.26.10`) via `setup-go` `go-version-file` | `go mod download` + `go mod verify` → `go build ./...` → `./scripts/validate.sh` → `go vet ./...` → gofmt check (fails if `gofmt -l` lists any tracked `.go` file) → `go test -race -count=1 ./...` → `go mod tidy` diff check |
-| `test (go stable)` — forward-compat leg | latest stable release | same as above except the tidy check (a newer Go may legitimately rewrite the `go`/`toolchain` lines) |
+| `test (go go.mod)` — required leg | from `go.mod` (`toolchain go1.26.10`) via `setup-go` `go-version-file` | `go mod download` + `go mod verify` → `go build ./...` → `./scripts/validate.sh` → `go vet ./...` → gofmt check (fails if `gofmt -l` lists any tracked `.go` file) → `go test -race -count=1 ./...` → `scripts/coverage-check.sh` (coverage floor) → `go mod tidy` diff check |
+| `test (go stable)` — forward-compat leg | latest stable release | same as above except the tidy check (a newer Go may legitimately rewrite the `go`/`toolchain` lines) and the coverage floor (measured once, on the required leg) |
 | `govulncheck` | from `go.mod` | `govulncheck@v1.9.0 ./...` — fails if the code calls a known vulnerability; module-only findings with no fix (e.g. GO-2026-5932 `x/crypto/openpgp`, not imported) are informational |
+| `integration` | from `go.mod` | MySQL 8.4 service container (throwaway, root password `ci`) → load `sql/ibex.sql` into `ibex` → `go test -tags integration -race -count=1 ./...` with `OPS_MYSQL_DSN` (every `testenv.New` then uses a unique MySQL database; `pkg/models` integration tests use `ibex` directly) → `scripts/smoke-e2e.sh` |
 
 Rules:
 
@@ -64,8 +68,14 @@ Rules:
 - `.github/dependabot.yml` opens weekly PRs for `gomod` (all `golang.org/x/*`
   grouped into one PR, because they require each other) and `github-actions`.
   Merge them only when CI is green.
-- Branch protection / required status checks are not configured yet (repo admin
-  setting); until then, check the run before and after merging.
+- Branch protection is a repo-admin setting, not code. Required checks to enable on
+  `main`: `test (go go.mod)`, `test (go stable)`, `govulncheck`, `integration`
+  (steps in README "CI Quality Gates"). Until enabled, check the run before and after merging.
+- Coverage floor is a ratchet: raise it with `scripts/coverage-check.sh --update` in the same
+  PR that adds tests; never lower it to get CI green. CI never edits the floor file.
+- The `integration` job and `smoke-e2e.sh` write to their database: only the CI service
+  container or another disposable MySQL. `smoke-e2e.sh` requires
+  `SMOKE_CONFIRM_DISPOSABLE_DB=1` for that reason.
 
 These gates are packaged as `skills/ops-guarding-validation/SKILL.md`
 (scopes `focused` / `full` / `final`). Warnings from `github.com/shoenig/go-m1cpu`
@@ -183,10 +193,8 @@ Based on `skills/ai-delivery-quality-gates/SKILL.md`:
 
 ## Known Gaps (tracked, not yet fixed)
 
-- CI has no DB-backed or startup-smoke job (`smoke-startup.sh` needs MySQL + a local `server.conf`).
-- Branch protection does not yet require the CI checks.
-- The chain test runs on sqlite in `go test ./...`; the MySQL variant (`-tags integration`) is not
-  run in CI yet (planned in `10-23-ci-quality-gates`).
+- Branch protection does not yet require the CI checks (admin must enable; see above).
+- The `integration` job was only verifiable on GitHub (no local MySQL); watch its first runs.
 - `outputs.WriteSamples` is empty; metrics inputs are not started by agentd.
 - `taskState` TODO at `pkg/server/router/handler.go:32` (state ignores host results).
 - `GetOutboundIP()` dials `8.8.8.8` in both `pkg/server/config` and `pkg/agentd/config`.

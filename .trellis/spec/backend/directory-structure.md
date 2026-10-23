@@ -53,7 +53,7 @@ pkg/
     netx/                      # offline-safe local IPv4 detection (LocalIP)
 etc/service/         # agentd.conf (tracked), server.conf.example (tracked); server.conf is gitignored
 sql/ibex.sql         # schema (MySQL); creates DB `ibex`
-scripts/             # validate.sh, smoke-startup.sh
+scripts/             # validate.sh, smoke-startup.sh, smoke-e2e.sh, coverage-check.sh
 skills/              # repo-local AI skills (validation, quality gates, Go concurrency)
 docs/                # project-analysis.md, ai-knowledge/, superpowers/{specs,plans}, 00_最终项目文档/
 ```
