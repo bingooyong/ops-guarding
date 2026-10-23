@@ -16,7 +16,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/ugorji/go/codec v1.3.2
 	github.com/urfave/cli/v2 v2.27.1
-	go.uber.org/automaxprocs v1.5.3
+	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.6.0
