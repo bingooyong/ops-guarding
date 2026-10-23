@@ -114,8 +114,12 @@ Inside the closure, every statement must use `tx`, not `DB()`.
   this bug; fixed and covered by `task_host_integration_test.go`.
 - `TaskMetaTotal` / `TaskMetaGets` build `created > '<formatted time>'` by
   string concatenation. Use `Where("created > ?", before)` in new queries.
-- DB tests: `//go:build integration` + `OPS_MYSQL_DSN` (skip when unset), e.g.
-  `pkg/models/task_host_integration_test.go`; not run in CI. Prefer extracting
+- DB tests: default to `pkg/internal/testenv.New(t)` (sqlite, hermetic); MySQL-only
+  behaviour (e.g. rollback semantics) uses `//go:build integration` +
+  `OPS_MYSQL_DSN` (skip when unset), e.g. `pkg/models/task_host_integration_test.go`.
+  When you add a table or column to `sql/ibex.sql`, update
+  `pkg/internal/testenv/schema_sqlite.go` too (`TestSchemaMatchesIbexSQL` enforces it).
+  Integration tests are not run in CI yet. Prefer extracting
   pure functions (`AggregateState`) and handler injection vars for unit tests.
 - Per-status host counts: `TaskHostStatusCounts(id)` (GROUP BY on `tht(id)`).
 - Previously no tests ran against a database; `docs/ai-knowledge/task-chain-regression-tests.md`

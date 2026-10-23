@@ -29,7 +29,8 @@ pkg/
     server.go        # Run(opts...) + initialize(): config → i18n → logx → cache → DB → timers → HTTP → RPC
     config/          # config.C global, MustLoad (multiconfig: TOML/.conf/JSON/YAML + env)
     router/          # gin engine (router.go), handlers (handler.go), helpers (funcs.go)
-    rpc/             # net/rpc + msgpack server; methods on type Server (method.go)
+    rpc/             # net/rpc + msgpack server; methods on type Server (method.go); rpc.Serve(listener) for tests
+    e2e/             # task-chain regression tests (test-only, uses internal/testenv)
     logic/           # scheduling / timeout decisions per task id
     timer/           # long-running loops: Heartbeat, Schedule, CleanLong, CacheHostDoing
   agentd/            # host-side agent (no database)
@@ -42,6 +43,7 @@ pkg/
     metrics_agentd.go
   models/            # GORM models + query functions (server side only)
   types/             # RPC wire types (ReportRequest, AssignTask...) and Sample/SampleList
+  internal/testenv/  # test support: isolated sqlite (or MySQL with -tags integration) DB + config; not imported by production code
   services/          # empty placeholder (metrics_status.go has only `package services`)
   appframe/          # in-repo shared framework, copied from n9e/ibex-style toolkits
     aop/ ginx/ errorx/ i18n/   # gin middleware, param/render helpers, panic-based errors

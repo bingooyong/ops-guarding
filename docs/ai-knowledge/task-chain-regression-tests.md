@@ -4,9 +4,9 @@
 
 Use this document when adding functional regression tests for the full task lifecycle: task creation, scheduling, agent assignment, execution, reporting, timeout, kill, and result retrieval.
 
-## Current Gaps
+## Current Status
 
-The current baseline validates compilation, package tests, and local `/ping` startup. It does not yet prove that a task can move end to end through server, database, scheduler, RPC, agent execution, and output retrieval.
+`pkg/server/e2e` (HTTP + scheduler + RPC + state/result/output, sqlite by default) and `pkg/agentd/timer/loopback_test.go` (real agentd against an in-process RPC server) cover the chain; `pkg/internal/testenv` provides the disposable database. Run the MySQL variant with `OPS_MYSQL_DSN=... go test -tags integration ./pkg/...`. Remaining gaps: focused unit tests for rpc/logic/agent execution edge cases, kill flow, and a CI job for the MySQL variant (see Trellis tasks `unit-tests-rpc-logic-agentd`, `ci-quality-gates`).
 
 ## Recommended Test Layers
 

@@ -77,14 +77,26 @@ C code are non-blocking if the command exits 0.
 
 Current state (don't overstate it):
 
-- Only three test files: `pkg/server/server_test.go` and
-  `pkg/agentd/agentd_test.go` (`TestDefaultConfigFile`), and
-  `pkg/appframe/logger/logger_test.go` (backends, concurrency).
+- Task-chain regression: `pkg/server/e2e/chain_test.go` drives create task (HTTP,
+  BasicAuth) → schedule (`logic`) → agent RPC `Report`/`GetTaskMeta` → state /
+  result / host output (HTTP), incl. batch, tolerance→pause, timeout + late
+  report, unknown task/host, auth. `pkg/agentd/timer/loopback_test.go` runs the
+  real agentd heartbeat/RPC client/script execution against an in-process
+  `rpc.Serve` listener. Both use `pkg/internal/testenv`.
+- `pkg/internal/testenv.New(t)`: isolated DB + memory cache + `config.C`
+  (restored in Cleanup). Default backend is in-memory sqlite (test-only dep
+  `github.com/glebarez/sqlite`, pure Go, never linked into `./cmd`); with
+  `-tags integration` and `OPS_MYSQL_DSN` it creates a unique MySQL database
+  from `sql/ibex.sql` and drops it afterwards. `TestSchemaMatchesIbexSQL`
+  fails if the hand-written sqlite DDL drifts from `sql/ibex.sql` columns.
 - Unit tests now cover `models.AggregateState`, `router` task-state / host
   output handlers (gin `httptest` + injectable `task*Fn` vars, no DB), and
   `appframe/netx.LocalIP` (injected `Dial` / `Interfaces`). MySQL tests live
-  behind the `integration` build tag. RPC, scheduler and agent execution are
-  still untested.
+  behind the `integration` build tag. Scheduler/RPC/agent execution are covered
+  only through the chain tests above; focused unit tests are still missing.
+- Coverage (Go 1.26.10): per-package default mode 15.3% total; with
+  `-coverpkg=./...` (counts the e2e tests' reach into models/logic/rpc) 30.9%.
+  Use the `-coverpkg=./...` figure for any coverage gate.
 
 Rules for new work:
 
@@ -153,7 +165,8 @@ Based on `skills/ai-delivery-quality-gates/SKILL.md`:
 
 - CI has no DB-backed or startup-smoke job (`smoke-startup.sh` needs MySQL + a local `server.conf`).
 - Branch protection does not yet require the CI checks.
-- No functional regression test for the task chain (create → schedule → agent → report → result).
+- The chain test runs on sqlite in `go test ./...`; the MySQL variant (`-tags integration`) is not
+  run in CI yet (planned in `10-23-ci-quality-gates`).
 - `outputs.WriteSamples` is empty; metrics inputs are not started by agentd.
 - `taskState` TODO at `pkg/server/router/handler.go:32` (state ignores host results).
 - `GetOutboundIP()` dials `8.8.8.8` in both `pkg/server/config` and `pkg/agentd/config`.
