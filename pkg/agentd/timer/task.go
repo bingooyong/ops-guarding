@@ -265,6 +265,8 @@ func (t *Task) start() {
 
 	err := t.prepare()
 	if err != nil {
+		log.Printf("E: cannot prepare task[%d]: %v", t.Id, err)
+		t.failStart(fmt.Errorf("prepare: %w", err))
 		return
 	}
 
