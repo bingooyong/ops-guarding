@@ -117,7 +117,8 @@ Current state (don't overstate it):
   `TestKillWhileOutputIsStreaming` (race witness), `TestKillTaskWithoutProcess`
   (nil/unstarted `Cmd`, replayed result), `TestKillGraceFallbackRecordsResult`,
   `TestRerunResetsOutputAndStdin`, `TestStartFailureReportsFailed`,
-  `TestStartMarksTaskAliveSynchronously`. When changing `pkg/agentd/timer/task.go`
+  `TestStartMarksTaskAliveSynchronously`, and `prepare_failure_test.go`
+  (prepare error -> reported `failed`, redo with a new clock recovers). When changing `pkg/agentd/timer/task.go`
   run `go test -race -count=3 ./pkg/agentd/...`.
 - Agent execution tests pre-populate `MetaDir/<id>/{script,args,account,stdin,.write}`
   so `Task.prepare` reads from disk and needs no RPC server; use the current
@@ -195,9 +196,6 @@ Based on `skills/ai-delivery-quality-gates/SKILL.md`:
 
 ## Known Gaps (tracked, not yet fixed)
 
-- `Task.prepare()` failure in agentd (meta RPC down, disk error) leaves the task `running`
-  and repeat assignments are ignored (same id/clock/action), so it is never retried; only the
-  server timeout ends it. Needs a retry decision (drop from `Locals` vs mark `failed`).
 - Branch protection does not yet require the CI checks (admin must enable; see above).
 - The `integration` job was only verifiable on GitHub (no local MySQL); watch its first runs.
 - `outputs.WriteSamples` is empty; metrics inputs are not started by agentd.

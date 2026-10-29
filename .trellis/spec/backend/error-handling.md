@@ -64,9 +64,10 @@ matches where your code runs:
 - Task execution (`timer/task.go`): output buffers are written through
   `lockedWriter` (same lock as `GetStdout`); `runProcess` owns the final status and
   persists after `Wait`; `killProcess` only signals and waits up to `killGrace`, and
-  is safe for tasks without a process (status `killed`). Permanent start failures
-  (`CmdStart`, `user.Current`) end as `failed` with the error in stderr
-  (`Task.failStart`), never as a stuck `running`.
+  is safe for tasks without a process (status `killed`). Start failures
+  (`prepare()` incl. the meta RPC, `CmdStart`, `user.Current`) end as `failed` with the error in stderr
+  (`Task.failStart`), never as a stuck `running`. No auto-retry: a redo
+  (new clock) re-runs `prepare()`.
 - After an RPC failure, call `client.CloseCli()` so the next call reconnects.
 - Metrics input goroutines guard with `defer recover()` + `runtimex.Stack(3)`
   (`InputReader.gatherOnce`). Do the same for any new goroutine that runs
